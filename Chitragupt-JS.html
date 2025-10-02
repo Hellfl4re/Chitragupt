@@ -10,6 +10,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- SheetJS for Excel Integration -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
         .alert-fade-in {
@@ -40,6 +42,24 @@
 
             <!-- Left Column: Actions -->
             <div class="lg:col-span-1 flex flex-col gap-8">
+                <!-- File Operations Card -->
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4 border-b pb-2">Data Storage (Excel)</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="excel-file-input" class="block text-sm font-medium text-gray-700">Load Inventory & Recipes</label>
+                            <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+                        </div>
+                        <button id="save-data-button" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-300">
+                            Save to Excel File
+                        </button>
+                        <p class="text-xs text-gray-500 mt-2">
+                            Load an Excel file with two sheets: "Inventory" and "Recipes".
+                            If you don't have one, click "Save to Excel File" to download a template.
+                        </p>
+                    </div>
+                </div>
+
                 <!-- Produce Recipe Card -->
                 <div class="bg-white p-6 rounded-xl shadow-lg">
                     <h2 class="text-2xl font-bold mb-4 border-b pb-2">Produce Recipe</h2>
@@ -114,8 +134,8 @@
         document.addEventListener('DOMContentLoaded', () => {
 
             // --- DATA STORE (STATE) ---
-            // In a real app, this might be fetched from an API or saved in localStorage
-            const inventory = {
+            // Data is loaded from an Excel file or uses this default sample.
+            let inventory = {
                 'Aata': 20000,
                 'Maida': 15000,
                 'Ghee': 10000,
@@ -124,7 +144,7 @@
                 'Milk Powder': 1000
             };
 
-            const recipes = {
+            let recipes = {
                 'Aate Biscuit (62 pcs)': {
                     'Aata': 6000,
                     'Maida': 6000,
@@ -143,6 +163,8 @@
             const addStockForm = document.getElementById('add-stock-form');
             const recipeSelect = document.getElementById('recipe-select');
             const ingredientSelect = document.getElementById('ingredient-select');
+            const excelFileInput = document.getElementById('excel-file-input');
+            const saveDataButton = document.getElementById('save-data-button');
 
             // --- UTILITY FUNCTIONS ---
             const formatGrams = (g) => {
@@ -163,7 +185,6 @@
                 alertDiv.innerHTML = `<p class="font-semibold">${message}</p>`;
                 messageContainer.prepend(alertDiv);
 
-                // Automatically remove the message after 5 seconds
                 setTimeout(() => {
                     alertDiv.style.opacity = '0';
                     alertDiv.style.transition = 'opacity 0.5s';
@@ -171,10 +192,9 @@
                 }, 5000);
             };
 
-
             // --- RENDERING FUNCTIONS (Update the UI) ---
             const renderInventory = () => {
-                inventoryTableBody.innerHTML = ''; // Clear existing table
+                inventoryTableBody.innerHTML = '';
                 Object.entries(inventory).sort().forEach(([name, amount]) => {
                     const row = document.createElement('tr');
                     row.innerHTML = `
@@ -186,10 +206,9 @@
             };
             
             const renderRecipes = () => {
-                // Keep the header, clear only the recipe list
                 const existingHeader = recipeBookContainer.querySelector('h2');
                 recipeBookContainer.innerHTML = '';
-                recipeBookContainer.appendChild(existingHeader);
+                if (existingHeader) recipeBookContainer.appendChild(existingHeader);
 
                 Object.entries(recipes).forEach(([name, ingredients]) => {
                     const recipeDiv = document.createElement('div');
@@ -217,7 +236,8 @@
                 });
 
                 ingredientSelect.innerHTML = '';
-                Object.keys(inventory).sort().forEach(name => {
+                const ingredients = Object.keys(inventory).length > 0 ? Object.keys(inventory) : ['Aata', 'Maida', 'Ghee', 'Cheeni', 'Custard', 'Milk Powder'];
+                ingredients.sort().forEach(name => {
                     const option = new Option(name, name);
                     ingredientSelect.add(option);
                 });
@@ -230,6 +250,10 @@
                 const recipeName = formData.get('recipe');
                 const quantity = parseInt(formData.get('quantity'), 10);
                 
+                if (!recipeName) {
+                    showMessage('Please select a recipe to produce.', 'error');
+                    return;
+                }
                 if (isNaN(quantity) || quantity <= 0) {
                     showMessage('Production quantity must be a positive number.', 'error');
                     return;
@@ -241,9 +265,9 @@
 
                 for (const [ingredient, requiredAmount] of Object.entries(selectedRecipe)) {
                     const totalRequired = requiredAmount * quantity;
-                    if (inventory[ingredient] < totalRequired) {
+                    if (!inventory[ingredient] || inventory[ingredient] < totalRequired) {
                         canProduce = false;
-                        const missingAmount = totalRequired - inventory[ingredient];
+                        const missingAmount = totalRequired - (inventory[ingredient] || 0);
                         missingIngredients.push(`${ingredient} (missing ${formatGrams(missingAmount)})`);
                     }
                 }
@@ -253,7 +277,7 @@
                         inventory[ingredient] -= requiredAmount * quantity;
                     }
                     showMessage(`Successfully produced ${quantity} batch(es) of ${recipeName}!`, 'success');
-                    renderInventory(); // Update UI
+                    renderInventory();
                 } else {
                     showMessage(`Not enough stock. Missing: ${missingIngredients.join(', ')}`, 'error');
                 }
@@ -270,22 +294,130 @@
                     return;
                 }
 
+                if (!inventory[ingredient]) {
+                    inventory[ingredient] = 0;
+                }
                 inventory[ingredient] += amount;
                 showMessage(`Added ${formatGrams(amount)} of ${ingredient} to stock.`, 'success');
                 addStockForm.reset();
-                renderInventory(); // Update UI
+                renderInventory();
+                populateSelectOptions();
+            };
+
+            const handleFileLoad = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+
+                        // Process Inventory (Sheet 1)
+                        const inventorySheetName = workbook.SheetNames[0];
+                        if (!inventorySheetName) throw new Error("Excel file must have at least one sheet for Inventory.");
+                        const inventorySheet = workbook.Sheets[inventorySheetName];
+                        const inventoryData = XLSX.utils.sheet_to_json(inventorySheet);
+                        
+                        const newInventory = {};
+                        inventoryData.forEach(item => {
+                            const ingredientKey = Object.keys(item).find(k => k.toLowerCase().includes('ingredient'));
+                            const stockKey = Object.keys(item).find(k => k.toLowerCase().includes('stock'));
+                            if (ingredientKey && stockKey && item[ingredientKey] && item[stockKey] !== undefined && !isNaN(parseFloat(item[stockKey]))) {
+                                newInventory[String(item[ingredientKey]).trim()] = parseFloat(item[stockKey]);
+                            }
+                        });
+                        inventory = newInventory;
+
+                        // Process Recipes (Sheet 2)
+                        const newRecipes = {};
+                        if (workbook.SheetNames.length > 1) {
+                            const recipesSheetName = workbook.SheetNames[1];
+                            const recipesSheet = workbook.Sheets[recipesSheetName];
+                            const recipesData = XLSX.utils.sheet_to_json(recipesSheet);
+
+                            recipesData.forEach(item => {
+                                const recipeKey = Object.keys(item).find(k => k.toLowerCase().includes('recipe'));
+                                const ingredientKey = Object.keys(item).find(k => k.toLowerCase().includes('ingredient'));
+                                const amountKey = Object.keys(item).find(k => k.toLowerCase().includes('amount'));
+
+                                if (recipeKey && ingredientKey && amountKey && item[recipeKey] && item[ingredientKey] && item[amountKey] !== undefined && !isNaN(parseFloat(item[amountKey]))) {
+                                    const rName = String(item[recipeKey]).trim();
+                                    const iName = String(item[ingredientKey]).trim();
+                                    if (!newRecipes[rName]) newRecipes[rName] = {};
+                                    newRecipes[rName][iName] = parseFloat(item[amountKey]);
+                                }
+                            });
+                        }
+                        recipes = newRecipes;
+
+                        initUI();
+                        showMessage('Successfully loaded data from Excel file!', 'success');
+                    } catch (error) {
+                        console.error("Error processing Excel file:", error);
+                        showMessage(`Error reading file: ${error.message}. Please ensure file has 'Inventory' and 'Recipes' sheets with correct columns.`, 'error');
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            };
+
+            const handleSaveData = () => {
+                try {
+                    // Prepare Inventory data
+                    const inventoryData = Object.entries(inventory).map(([name, stock]) => ({
+                        'Ingredient': name,
+                        'Stock (g)': stock
+                    }));
+
+                    // Prepare Recipes data
+                    const recipesData = [];
+                    Object.entries(recipes).forEach(([recipeName, ingredients]) => {
+                        Object.entries(ingredients).forEach(([ingredient, amount]) => {
+                            recipesData.push({
+                                'Recipe Name': recipeName,
+                                'Ingredient': ingredient,
+                                'Amount (g)': amount
+                            });
+                        });
+                    });
+
+                    const inventorySheet = XLSX.utils.json_to_sheet(inventoryData.length > 0 ? inventoryData : [{}]);
+                    const recipesSheet = XLSX.utils.json_to_sheet(recipesData.length > 0 ? recipesData : [{}]);
+                    
+                    if (inventoryData.length === 0) XLSX.utils.sheet_add_aoa(inventorySheet, [['Ingredient', 'Stock (g)']], { origin: 'A1' });
+                    if (recipesData.length === 0) XLSX.utils.sheet_add_aoa(recipesSheet, [['Recipe Name', 'Ingredient', 'Amount (g)']], { origin: 'A1' });
+
+                    const workbook = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(workbook, inventorySheet, 'Inventory');
+                    XLSX.utils.book_append_sheet(workbook, recipesSheet, 'Recipes');
+
+                    XLSX.writeFile(workbook, 'Chitragupt_Inventory.xlsx');
+
+                    showMessage('Data saved successfully! Check your downloads.', 'success');
+                } catch (error) {
+                    console.error("Error saving data to Excel:", error);
+                    showMessage(`Error saving file: ${error.message}`, 'error');
+                }
             };
 
             // --- INITIALIZATION ---
+            const initUI = () => {
+                renderInventory();
+                renderRecipes();
+                populateSelectOptions();
+            };
+
             const init = () => {
                 // Set up event listeners
                 produceForm.addEventListener('submit', handleProduce);
                 addStockForm.addEventListener('submit', handleAddStock);
+                excelFileInput.addEventListener('change', handleFileLoad);
+                saveDataButton.addEventListener('click', handleSaveData);
 
-                // Initial render of all UI components
-                populateSelectOptions();
-                renderInventory();
-                renderRecipes();
+                // Initial render
+                initUI();
+                showMessage("Welcome! Load an Excel file to start, or use the default sample data.", "info");
             };
 
             // Run the app
