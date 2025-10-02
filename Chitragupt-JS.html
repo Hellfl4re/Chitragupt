@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chitragupt - JavaScript Inventory Manager</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .alert-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <!-- Main Container -->
+    <div class="container mx-auto p-4 md:p-8 max-w-6xl">
+
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-700">Chitragupt</h1>
+            <p class="text-lg text-gray-500 mt-2">Your Smart Recipe & Inventory Manager (JS Version)</p>
+        </header>
+
+        <!-- Dynamic Messages Container -->
+        <div id="message-container" class="w-full max-w-4xl mx-auto mb-6"></div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <!-- Left Column: Actions -->
+            <div class="lg:col-span-1 flex flex-col gap-8">
+                <!-- Produce Recipe Card -->
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4 border-b pb-2">Produce Recipe</h2>
+                    <form id="produce-form" class="space-y-4">
+                        <div>
+                            <label for="recipe-select" class="block text-sm font-medium text-gray-700">Select Recipe</label>
+                            <select id="recipe-select" name="recipe" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <!-- Recipe options will be populated by JavaScript -->
+                            </select>
+                        </div>
+                        <div>
+                            <label for="quantity" class="block text-sm font-medium text-gray-700">Batches to Produce</label>
+                            <input type="number" name="quantity" id="quantity" value="1" min="1" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+                        <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300">
+                            Produce
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Add Stock Card -->
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4 border-b pb-2">Add Stock</h2>
+                    <form id="add-stock-form" class="space-y-4">
+                        <div>
+                            <label for="ingredient-select" class="block text-sm font-medium text-gray-700">Select Ingredient</label>
+                            <select id="ingredient-select" name="ingredient" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <!-- Ingredient options will be populated by JavaScript -->
+                            </select>
+                        </div>
+                        <div>
+                            <label for="amount" class="block text-sm font-medium text-gray-700">Amount to Add (in grams)</label>
+                            <input type="number" name="amount" id="amount" placeholder="e.g., 5000" min="1" required class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+                        <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-300">
+                            Add to Stock
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Right Column: Information -->
+            <div class="lg:col-span-2 flex flex-col gap-8">
+                <!-- Current Inventory Card -->
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4">Current Inventory</h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ingredient</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Available</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventory-table-body" class="bg-white divide-y divide-gray-200">
+                                <!-- Inventory rows will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                 <!-- Recipe Details Card -->
+                <div id="recipe-book" class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4">Recipe Book</h2>
+                    <!-- Recipe details will be populated by JavaScript -->
+                </div>
+            </div>
+
+        </div> <!-- End Grid -->
+    </div> <!-- End Container -->
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- DATA STORE (STATE) ---
+            // In a real app, this might be fetched from an API or saved in localStorage
+            const inventory = {
+                'Aata': 20000,
+                'Maida': 15000,
+                'Ghee': 10000,
+                'Cheeni': 12000,
+                'Custard': 2000,
+                'Milk Powder': 1000
+            };
+
+            const recipes = {
+                'Aate Biscuit (62 pcs)': {
+                    'Aata': 6000,
+                    'Maida': 6000,
+                    'Ghee': 5500,
+                    'Cheeni': 5500,
+                    'Custard': 500,
+                    'Milk Powder': 200
+                }
+            };
+
+            // --- DOM ELEMENT REFERENCES ---
+            const inventoryTableBody = document.getElementById('inventory-table-body');
+            const recipeBookContainer = document.getElementById('recipe-book');
+            const messageContainer = document.getElementById('message-container');
+            const produceForm = document.getElementById('produce-form');
+            const addStockForm = document.getElementById('add-stock-form');
+            const recipeSelect = document.getElementById('recipe-select');
+            const ingredientSelect = document.getElementById('ingredient-select');
+
+            // --- UTILITY FUNCTIONS ---
+            const formatGrams = (g) => {
+                if (g >= 1000) {
+                    return `${(g / 1000).toFixed(2)} kg`;
+                }
+                return `${g} g`;
+            };
+            
+            const showMessage = (message, type = 'info') => {
+                const colorClasses = {
+                    success: 'bg-green-100 text-green-800 border-green-500',
+                    error: 'bg-red-100 text-red-800 border-red-500',
+                    info: 'bg-blue-100 text-blue-800 border-blue-500'
+                };
+                const alertDiv = document.createElement('div');
+                alertDiv.className = `alert-fade-in p-4 rounded-lg shadow-md mb-3 border-l-4 ${colorClasses[type]}`;
+                alertDiv.innerHTML = `<p class="font-semibold">${message}</p>`;
+                messageContainer.prepend(alertDiv);
+
+                // Automatically remove the message after 5 seconds
+                setTimeout(() => {
+                    alertDiv.style.opacity = '0';
+                    alertDiv.style.transition = 'opacity 0.5s';
+                    setTimeout(() => alertDiv.remove(), 500);
+                }, 5000);
+            };
+
+
+            // --- RENDERING FUNCTIONS (Update the UI) ---
+            const renderInventory = () => {
+                inventoryTableBody.innerHTML = ''; // Clear existing table
+                Object.entries(inventory).sort().forEach(([name, amount]) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${formatGrams(amount)}</td>
+                    `;
+                    inventoryTableBody.appendChild(row);
+                });
+            };
+            
+            const renderRecipes = () => {
+                // Keep the header, clear only the recipe list
+                const existingHeader = recipeBookContainer.querySelector('h2');
+                recipeBookContainer.innerHTML = '';
+                recipeBookContainer.appendChild(existingHeader);
+
+                Object.entries(recipes).forEach(([name, ingredients]) => {
+                    const recipeDiv = document.createElement('div');
+                    recipeDiv.className = 'mb-4';
+                    
+                    let ingredientsHtml = '<ul class="list-disc list-inside mt-2 text-gray-600">';
+                    Object.entries(ingredients).forEach(([ingredient, amount]) => {
+                        ingredientsHtml += `<li>${ingredient}: ${formatGrams(amount)}</li>`;
+                    });
+                    ingredientsHtml += '</ul>';
+
+                    recipeDiv.innerHTML = `
+                        <h3 class="text-lg font-semibold text-indigo-700">${name}</h3>
+                        ${ingredientsHtml}
+                    `;
+                    recipeBookContainer.appendChild(recipeDiv);
+                });
+            };
+            
+            const populateSelectOptions = () => {
+                recipeSelect.innerHTML = '';
+                Object.keys(recipes).forEach(name => {
+                    const option = new Option(name, name);
+                    recipeSelect.add(option);
+                });
+
+                ingredientSelect.innerHTML = '';
+                Object.keys(inventory).sort().forEach(name => {
+                    const option = new Option(name, name);
+                    ingredientSelect.add(option);
+                });
+            };
+
+            // --- EVENT HANDLERS ---
+            const handleProduce = (event) => {
+                event.preventDefault();
+                const formData = new FormData(produceForm);
+                const recipeName = formData.get('recipe');
+                const quantity = parseInt(formData.get('quantity'), 10);
+                
+                if (isNaN(quantity) || quantity <= 0) {
+                    showMessage('Production quantity must be a positive number.', 'error');
+                    return;
+                }
+
+                const selectedRecipe = recipes[recipeName];
+                let canProduce = true;
+                const missingIngredients = [];
+
+                for (const [ingredient, requiredAmount] of Object.entries(selectedRecipe)) {
+                    const totalRequired = requiredAmount * quantity;
+                    if (inventory[ingredient] < totalRequired) {
+                        canProduce = false;
+                        const missingAmount = totalRequired - inventory[ingredient];
+                        missingIngredients.push(`${ingredient} (missing ${formatGrams(missingAmount)})`);
+                    }
+                }
+
+                if (canProduce) {
+                    for (const [ingredient, requiredAmount] of Object.entries(selectedRecipe)) {
+                        inventory[ingredient] -= requiredAmount * quantity;
+                    }
+                    showMessage(`Successfully produced ${quantity} batch(es) of ${recipeName}!`, 'success');
+                    renderInventory(); // Update UI
+                } else {
+                    showMessage(`Not enough stock. Missing: ${missingIngredients.join(', ')}`, 'error');
+                }
+            };
+
+            const handleAddStock = (event) => {
+                event.preventDefault();
+                const formData = new FormData(addStockForm);
+                const ingredient = formData.get('ingredient');
+                const amount = parseFloat(formData.get('amount'));
+
+                if (isNaN(amount) || amount <= 0) {
+                    showMessage('Stock amount must be a positive number.', 'error');
+                    return;
+                }
+
+                inventory[ingredient] += amount;
+                showMessage(`Added ${formatGrams(amount)} of ${ingredient} to stock.`, 'success');
+                addStockForm.reset();
+                renderInventory(); // Update UI
+            };
+
+            // --- INITIALIZATION ---
+            const init = () => {
+                // Set up event listeners
+                produceForm.addEventListener('submit', handleProduce);
+                addStockForm.addEventListener('submit', handleAddStock);
+
+                // Initial render of all UI components
+                populateSelectOptions();
+                renderInventory();
+                renderRecipes();
+            };
+
+            // Run the app
+            init();
+        });
+    </script>
+</body>
+</html>
