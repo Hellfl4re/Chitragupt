@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chitragupt - JavaScript Inventory Manager</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- SheetJS for Excel Integration -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <!-- Main Container -->
+    <div class="container mx-auto p-4 md:p-8 max-w-6xl">
+
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-700">Chitragupt</h1>
+            <p class="text-lg text-gray-500 mt-2">Your Smart Recipe & Inventory Manager (JS Version)</p>
+        </header>
+
+        <!-- Dynamic Messages Container -->
+        <div id="message-container" class="w-full max-w-4xl mx-auto mb-6"></div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <!-- Left Column: Actions -->
+            <div class="lg:col-span-1 flex flex-col gap-8">
+                <!-- File Operations Card -->
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4 border-b pb-2">Data Storage (Excel)</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="excel-file-input" class="block text-sm font-medium text-gray-700">Load Inventory & Recipes</label>
+                            <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+                        </div>
+                        <button id="save-data-button" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-300">
+                            Save to Excel File
+                        </button>
+                        <p class="text-xs text-gray-500 mt-2">
+                            Load an Excel file with two sheets: "Inventory" and "Recipes".
+                            If you don't have one, click "Save to Excel File" to download a template.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Produce Recipe Card -->
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4 border-b pb-2">Produce Recipe</h2>
+                    <form id="produce-form" class="space-y-4">
+                        <div>
+                            <label for="recipe-select" class="block text-sm font-medium text-gray-700">Select Recipe</label>
+                            <select id="recipe-select" name="recipe" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <!-- Recipe options will be populated by JavaScript -->
+                            </select>
+                        </div>
+                        <div>
+                            <label for="quantity" class="block text-sm font-medium text-gray-700">Batches to Produce</label>
+                            <input type="number" name="quantity" id="quantity" value="1" min="1" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+                        <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300">
+                            Produce
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Add Stock Card -->
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4 border-b pb-2">Add Stock</h2>
+                    <form id="add-stock-form" class="space-y-4">
+                        <div>
+                            <label for="ingredient-select" class="block text-sm font-medium text-gray-700">Select Ingredient</label>
+                            <select id="ingredient-select" name="ingredient" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <!-- Ingredient options will be populated by JavaScript -->
+                            </select>
+                        </div>
+                        <div>
+                            <label for="amount" class="block text-sm font-medium text-gray-700">Amount to Add (in grams)</label>
+                            <input type="number" name="amount" id="amount" placeholder="e.g., 5000" min="1" required class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+                        <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-300">
+                            Add to Stock
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Right Column: Information -->
+            <div class="lg:col-span-2 flex flex-col gap-8">
+                <!-- Current Inventory Card -->
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4">Current Inventory</h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ingredient</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Available</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventory-table-body" class="bg-white divide-y divide-gray-200">
+                                <!-- Inventory rows will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                 <!-- Recipe Details Card -->
+                <div id="recipe-book" class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4">Recipe Book</h2>
+                    <!-- Recipe details will be populated by JavaScript -->
+                </div>
+            </div>
+
+        </div> <!-- End Grid -->
+    </div> <!-- End Container -->
+
+    <script src="script.js"></script>
+</body>
+</html>
